@@ -1,5 +1,5 @@
 # encoding=utf-8
-import cPickle as pickle
+import pickle
 import random
 from random import *
 import numpy as np
@@ -21,13 +21,15 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import os.path
 from gensim.models import Word2Vec
 
-def stopwordslist(filepath = '../Data/weibo/stop_words.txt'):
+
+def stopwordslist(filepath='../data/weibo/stop_words.txt'):
     stopwords = {}
     for line in open(filepath, 'r').readlines():
-        line = unicode(line, "utf-8").strip()
+        line = bytes(line, "utf-8").strip()  # unicode
         stopwords[line] = 1
-    #stopwords = [line.strip() for line in open(filepath, 'r', encoding='utf-8').readlines()]
+    # stopwords = [line.strip() for line in open(filepath, 'r', encoding='utf-8').readlines()]
     return stopwords
+
 
 def clean_str_sst(string):
     """
@@ -43,14 +45,14 @@ def clean_str_sst(string):
 #
 def read_image():
     image_list = {}
-    file_list = ['../Data/weibo/nonrumor_images/', '../Data/weibo/rumor_images/']
+    file_list = ['../data/weibo/nonrumor_images/', '../data/weibo/rumor_images/']
     for path in file_list:
         data_transforms = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-            ])
+        ])
 
         for i, filename in enumerate(os.listdir(path)):  # assuming gif
 
@@ -58,37 +60,40 @@ def read_image():
             try:
                 im = Image.open(path + filename).convert('RGB')
                 im = data_transforms(im)
-                #im = 1
+                # im = 1
                 image_list[filename.split('/')[-1].split(".")[0].lower()] = im
             except:
                 print(filename)
     print("image length " + str(len(image_list)))
-    #print("image names are " + str(image_list.keys()))
+    # print("image names are " + str(image_list.keys()))
     return image_list
 
+
 def write_txt(data):
-    f = open("../Data/weibo/top_n_data.txt", 'wb')
+    f = open("../data/weibo/top_n_data.txt", 'wb')
     for line in data:
         for l in line:
-            f.write(l+"\n")
+            f.write(l + "\n")
         f.write("\n")
         f.write("\n")
     f.close()
-text_dict = {}
-def write_data(flag, image, text_only):
 
+
+text_dict = {}
+
+
+def write_data(flag, image, text_only):
     def read_post(flag):
         stop_words = stopwordslist()
-        pre_path = "../Data/weibo/tweets/"
+        pre_path = "../data/weibo/tweets/"
         file_list = [pre_path + "test_nonrumor.txt", pre_path + "test_rumor.txt", \
-                         pre_path + "train_nonrumor.txt", pre_path + "train_rumor.txt"]
+                     pre_path + "train_nonrumor.txt", pre_path + "train_rumor.txt"]
         if flag == "train":
-            id = pickle.load(open("../Data/weibo/train_id.pickle", 'rb'))
+            id = pickle.load(open("../data/weibo/train_id.pickle", 'rb'))
         elif flag == "validate":
-            id = pickle.load(open("../Data/weibo/validate_id.pickle", 'rb'))
+            id = pickle.load(open("../data/weibo/validate_id.pickle", 'rb'))
         elif flag == "test":
-            id = pickle.load(open("../Data/weibo/test_id.pickle", 'rb'))
-
+            id = pickle.load(open("../data/weibo/test_id.pickle", 'rb'))
 
         post_content = []
         labels = []
@@ -118,20 +123,16 @@ def write_data(flag, image, text_only):
                 # print(key/3)
                 # continue
 
-
                 if (i + 1) % 3 == 1:
                     line_data = []
-                    twitter_id = l.split('|')[0]
+                    twitter_id = l.decode("utf-8").split('|')[0]
                     line_data.append(twitter_id)
 
-
-
                 if (i + 1) % 3 == 2:
-
                     line_data.append(l.lower())
 
                 if (i + 1) % 3 == 0:
-                    l = clean_str_sst(unicode(l, "utf-8"))
+                    l = clean_str_sst(str(l, "utf-8"))  # unicode
 
                     seg_list = jieba.cut_for_search(l)
                     new_seg_list = []
@@ -156,11 +157,10 @@ def write_data(flag, image, text_only):
 
                         data.append(line_data)
 
-
             f.close()
             # print(data)
             #     return post_content
-        
+
         data_df = pd.DataFrame(np.array(data), columns=column)
         write_txt(top_data)
 
@@ -169,7 +169,6 @@ def write_data(flag, image, text_only):
     post_content, post = read_post(flag)
     print("Original post length is " + str(len(post_content)))
     print("Original data frame is " + str(post.shape))
-
 
     def find_most(db):
         maxcount = max(len(v) for v in db.values())
@@ -183,22 +182,22 @@ def write_data(flag, image, text_only):
             #   temp.append(np.array(train[i])[selec_indices])
         return temp
 
-#     def balance_event(data, event_list):
-#         id = find_most(event_list)[0]
-#         remove_indice = random.sample(range(min(event_list[id]), \
-#                                             max(event_list[id])), int(len(event_list[id]) * 0.9))
-#         select_indices = np.delete(range(len(data[0])), remove_indice)
-#         return select(data, select_indices)
+    #     def balance_event(data, event_list):
+    #         id = find_most(event_list)[0]
+    #         remove_indice = random.sample(range(min(event_list[id]), \
+    #                                             max(event_list[id])), int(len(event_list[id]) * 0.9))
+    #         select_indices = np.delete(range(len(data[0])), remove_indice)
+    #         return select(data, select_indices)
 
-    def paired(text_only = False):
+    def paired(text_only=False):
         ordered_image = []
         ordered_text = []
         ordered_post = []
-        ordered_event= []
+        ordered_event = []
         label = []
         post_id = []
         image_id_list = []
-        #image = []
+        # image = []
 
         image_id = ""
         for i, id in enumerate(post['post_id']):
@@ -217,7 +216,6 @@ def write_data(flag, image, text_only):
                 ordered_event.append(post.iloc[i]['event_label'])
                 post_id.append(id)
 
-
                 label.append(post.iloc[i]['label'])
 
         label = np.array(label, dtype=np.int)
@@ -227,45 +225,38 @@ def write_data(flag, image, text_only):
         print("Rummor number is " + str(sum(label)))
         print("Non rummor is " + str(len(label) - sum(label)))
 
-
-
         #
         if flag == "test":
             y = np.zeros(len(ordered_post))
         else:
             y = []
 
-
         data = {"post_text": np.array(ordered_post),
                 "original_post": np.array(ordered_text),
                 "image": ordered_image, "social_feature": [],
                 "label": np.array(label), \
-                "event_label": ordered_event, "post_id":np.array(post_id),
-                "image_id":image_id_list}
-        #print(data['image'][0])
-
+                "event_label": ordered_event, "post_id": np.array(post_id),
+                "image_id": image_id_list}
+        # print(data['image'][0])
 
         print("data size is " + str(len(data["post_text"])))
-        
+
         return data
 
     paired_data = paired(text_only)
 
-    print("paired post length is "+str(len(paired_data["post_text"])))
+    print("paired post length is " + str(len(paired_data["post_text"])))
     print("paried data has " + str(len(paired_data)) + " dimension")
     return paired_data
 
 
 def load_data(train, validate, test):
     vocab = defaultdict(float)
-    all_text = list(train['post_text']) + list(validate['post_text'])+list(test['post_text'])
+    all_text = list(train['post_text']) + list(validate['post_text']) + list(test['post_text'])
     for sentence in all_text:
         for word in sentence:
             vocab[word] += 1
     return vocab, all_text
-
-
-
 
 
 def build_data_cv(data_folder, cv=10, clean_string=True):
@@ -281,7 +272,7 @@ def build_data_cv(data_folder, cv=10, clean_string=True):
             rev = []
             rev.append(line.strip())
             if clean_string:
-                orig_rev = clean_str(" ".join(rev))
+                orig_rev = clean_str_sst(" ".join(rev))  # clean_str_sst
             else:
                 orig_rev = " ".join(rev).lower()
             words = set(orig_rev.split())
@@ -297,7 +288,7 @@ def build_data_cv(data_folder, cv=10, clean_string=True):
             rev = []
             rev.append(line.strip())
             if clean_string:
-                orig_rev = clean_str(" ".join(rev))
+                orig_rev = clean_str_sst(" ".join(rev))  # clean_str
             else:
                 orig_rev = " ".join(rev).lower()
             words = set(orig_rev.split())
@@ -336,7 +327,7 @@ def load_bin_vec(fname, vocab):
         header = f.readline()
         vocab_size, layer1_size = map(int, header.split())
         binary_len = np.dtype('float32').itemsize * layer1_size
-        for line in xrange(vocab_size):
+        for line in range(vocab_size):
             word = []
             while True:
                 ch = f.read(1)
@@ -362,9 +353,8 @@ def add_unknown_words(word_vecs, vocab, min_df=1, k=32):
             word_vecs[word] = np.random.uniform(-0.25, 0.25, k)
 
 
-
 def get_data(text_only):
-    #text_only = False
+    # text_only = False
 
     if text_only:
         print("Text only")
@@ -389,9 +379,9 @@ def get_data(text_only):
 
     #
     #
-    word_embedding_path = "../Data/weibo/w2v.pickle"
+    word_embedding_path = "../data/weibo/w2v.pickle"
 
-    w2v = pickle.load(open(word_embedding_path, 'rb'))
+    w2v = pickle.load(open(word_embedding_path, 'rb'), encoding='bytes')
     # print(temp)
     # #
     print("word2vec loaded!")
@@ -432,15 +422,10 @@ def get_data(text_only):
     # # rand_vecs = {}
     # # add_unknown_words(rand_vecs, vocab)
     W2 = rand_vecs = {}
-    w_file = open("../Data/weibo/word_embedding.pickle", "wb")
+    w_file = open("../data/weibo/word_embedding.pickle", "wb")
     pickle.dump([W, W2, word_idx_map, vocab, max_l], w_file)
     w_file.close()
     return train_data, valiate_data, test_data
-
-
-
-
-
 
 # if __name__ == "__main__":
 #     image_list = read_image()
